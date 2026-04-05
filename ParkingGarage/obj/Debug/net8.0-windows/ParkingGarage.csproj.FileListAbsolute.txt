@@ -1,0 +1,14 @@
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\ParkingGarage.exe
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\ParkingGarage.deps.json
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\ParkingGarage.runtimeconfig.json
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\ParkingGarage.dll
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\ParkingGarage.pdb
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.AssemblyInfoInputs.cache
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.AssemblyInfo.cs
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.csproj.CoreCompileInputs.cache
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.dll
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\refint\ParkingGarage.dll
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.pdb
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.genruntimeconfig.cache
+C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ref\ParkingGarage.dll
