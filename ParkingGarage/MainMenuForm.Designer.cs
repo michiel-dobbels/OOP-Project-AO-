@@ -27,7 +27,7 @@ partial class MainMenuForm
         lblTitle.Text = "Ondergrondse parking — simulatie";
 
         btnStart.AutoSize = true;
-        btnStart.BackColor = Color.FromArgb(40, 40, 40);
+        btnStart.BackColor = AppColors.PanelControl;
         btnStart.FlatStyle = FlatStyle.Flat;
         btnStart.FlatAppearance.BorderColor = Color.Gainsboro;
         btnStart.Font = new Font("Segoe UI", 11F, FontStyle.Regular, GraphicsUnit.Point);
@@ -39,7 +39,7 @@ partial class MainMenuForm
         btnStart.Click += BtnStart_Click;
 
         btnExit.AutoSize = true;
-        btnExit.BackColor = Color.FromArgb(40, 40, 40);
+        btnExit.BackColor = AppColors.PanelControl;
         btnExit.FlatStyle = FlatStyle.Flat;
         btnExit.FlatAppearance.BorderColor = Color.Gainsboro;
         btnExit.Font = new Font("Segoe UI", 11F, FontStyle.Regular, GraphicsUnit.Point);
@@ -52,7 +52,7 @@ partial class MainMenuForm
 
         panel.AutoSize = true;
         panel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        panel.BackColor = Color.Black;
+        panel.BackColor = AppColors.FieldBackground;
         panel.FlowDirection = FlowDirection.TopDown;
         panel.WrapContents = false;
         panel.Controls.Add(lblTitle);
@@ -63,7 +63,7 @@ partial class MainMenuForm
 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        BackColor = Color.Black;
+        BackColor = AppColors.FieldBackground;
         ClientSize = new Size(560, 360);
         Controls.Add(panel);
         FormBorderStyle = FormBorderStyle.FixedSingle;

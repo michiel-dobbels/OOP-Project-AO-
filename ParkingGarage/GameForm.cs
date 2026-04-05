@@ -19,7 +19,7 @@ public class GameForm : Form
         _game = new ParkingGame(960, 600);
         Text = "Parking — simulatie";
         ClientSize = new Size(960, 600);
-        BackColor = Color.Black;
+        BackColor = AppColors.FieldBackground;
         ForeColor = Color.WhiteSmoke;
         DoubleBuffered = true;
         KeyPreview = true;
@@ -88,7 +88,7 @@ public class GameForm : Form
             var r = spot.SpotBounds;
             g.DrawRectangle(linePen, r.X, r.Y, r.Width, r.Height);
 
-            var occupied = spot.IsOccupiedBy(_game.Car.Bounds);
+            var occupied = spot.IsOccupiedBy(_game.Car.AxisAlignedBounds);
             var fill = occupied ? RedLed : GreenLed;
             using var brush = new SolidBrush(fill);
             const float ledR = 9f;
@@ -96,14 +96,36 @@ public class GameForm : Form
             g.DrawEllipse(linePen, spot.LedCenter.X - ledR, spot.LedCenter.Y - ledR, ledR * 2, ledR * 2);
         }
 
-        var cb = _game.Car.Bounds;
-        using var carBrush = new SolidBrush(Color.FromArgb(200, 200, 210));
-        g.FillRectangle(carBrush, cb.X, cb.Y, cb.Width, cb.Height);
-        g.DrawRectangle(linePen, cb.X, cb.Y, cb.Width, cb.Height);
+        var car = _game.Car;
+        var hw = car.Width * 0.5f;
+        var hh = car.Height * 0.5f;
+        var state = g.Save();
+        try
+        {
+            g.TranslateTransform(car.CenterX, car.CenterY);
+            g.RotateTransform(car.HeadingDegreesClockwiseFromUp);
+
+            using var carBrush = new SolidBrush(Color.FromArgb(200, 200, 210));
+            g.FillRectangle(carBrush, -hw, -hh, car.Width, car.Height);
+            g.DrawRectangle(linePen, -hw, -hh, car.Width, car.Height);
+
+            using var noseBrush = new SolidBrush(Color.FromArgb(130, 130, 145));
+            PointF[] nose =
+            [
+                new(0, -hh + 3),
+                new(-5, -hh + 16),
+                new(5, -hh + 16)
+            ];
+            g.FillPolygon(noseBrush, nose);
+        }
+        finally
+        {
+            g.Restore(state);
+        }
 
         using var hintFont = new Font("Segoe UI", 9F, FontStyle.Italic, GraphicsUnit.Point);
         using var hintBrush = new SolidBrush(Color.FromArgb(160, 160, 160));
-        g.DrawString("Pijltoetsen = auto   |   ESC = menu sluiten", hintFont, hintBrush, 16f, ClientSize.Height - 36f);
+        g.DrawString("← / → = sturen   |   ↑ / ↓ = vooruit / achteruit   |   ESC = sluiten", hintFont, hintBrush, 16f, ClientSize.Height - 36f);
     }
 
     protected override void OnResize(EventArgs e)

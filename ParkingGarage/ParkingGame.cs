@@ -40,7 +40,7 @@ public class ParkingGame
     {
         get
         {
-            var b = Car.Bounds;
+            var b = Car.AxisAlignedBounds;
             var n = 0;
             foreach (var s in Spots)
             {
@@ -53,15 +53,7 @@ public class ParkingGame
 
     public void Update(float deltaSeconds, bool left, bool right, bool up, bool down)
     {
-        var dx = (right ? 1f : 0f) - (left ? 1f : 0f);
-        var dy = (down ? 1f : 0f) - (up ? 1f : 0f);
-        if (dx != 0 && dy != 0)
-        {
-            dx *= 0.70710677f;
-            dy *= 0.70710677f;
-        }
-
-        Car.Move(dx, dy, deltaSeconds, PlayArea);
+        Car.Drive(deltaSeconds, left, right, up, down, PlayArea);
     }
 
     private void RebuildLayout()
@@ -86,8 +78,10 @@ public class ParkingGame
             ClientWidth - 2 * Margin,
             ClientHeight - 2 * Margin);
 
-        var carStartX = PlayArea.Left + (PlayArea.Width - CarWidth) / 2f;
-        var carStartY = startY + SpotHeight + AisleBelowSpots;
-        Car = new Car(carStartX, carStartY, CarWidth, CarLength);
+        var carTopLeftX = PlayArea.Left + (PlayArea.Width - CarWidth) / 2f;
+        var carTopLeftY = startY + SpotHeight + AisleBelowSpots;
+        var cx = carTopLeftX + CarWidth / 2f;
+        var cy = carTopLeftY + CarLength / 2f;
+        Car = new Car(cx, cy, CarWidth, CarLength, headingRadians: 0f);
     }
 }
