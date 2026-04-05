@@ -46,7 +46,7 @@ partial class MainMenuForm
         btnExit.ForeColor = Color.WhiteSmoke;
         btnExit.Margin = new Padding(8);
         btnExit.Padding = new Padding(32, 12, 32, 12);
-        btnExit.Text = "Exit";
+        btnExit.Text = "stop simulatie";
         btnExit.UseVisualStyleBackColor = false;
         btnExit.Click += BtnExit_Click;
 

@@ -7,13 +7,14 @@ namespace ParkingGarage.Models;
 /// </summary>
 public class Car
 {
-    public Car(float centerX, float centerY, float width, float height, float headingRadians = 0f)
+    public Car(float centerX, float centerY, float width, float height, float headingRadians, Color bodyColor)
     {
         CenterX = centerX;
         CenterY = centerY;
         Width = width;
         Height = height;
         HeadingRadians = headingRadians;
+        BodyColor = bodyColor;
     }
 
     public float CenterX { get; set; }
@@ -24,14 +25,39 @@ public class Car
     /// <summary>Clockwise radians from screen-up (nose toward smaller Y).</summary>
     public float HeadingRadians { get; set; }
 
+    public Color BodyColor { get; }
+
+    /// <summary>Parked cars no longer move or accept input.</summary>
+    public bool IsParked { get; set; }
+
     public float Speed { get; set; } = 200f;
     public float RotateSpeed { get; set; } = 2.85f;
 
-    /// <summary>Axis-aligned bounds for overlap tests with parking spots.</summary>
     public RectangleF AxisAlignedBounds => ComputeAxisAlignedBounds(CenterX, CenterY);
 
-    /// <summary>Degrees clockwise from up, for GDI+ <see cref="System.Drawing.Graphics.RotateTransform"/>.</summary>
     public float HeadingDegreesClockwiseFromUp => HeadingRadians * (180f / MathF.PI);
+
+    public void GetWorldCorners(Span<PointF> destination)
+    {
+        var hw = Width * 0.5f;
+        var hh = Height * 0.5f;
+        ReadOnlySpan<(float lx, float lyGdi)> local =
+        [
+            (-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)
+        ];
+
+        var c = MathF.Cos(HeadingRadians);
+        var s = MathF.Sin(HeadingRadians);
+
+        for (var i = 0; i < 4; i++)
+        {
+            var (lx, lyGdi) = local[i];
+            var lyFwd = -lyGdi;
+            destination[i] = new PointF(
+                CenterX + lx * c + lyFwd * s,
+                CenterY + lx * s - lyFwd * c);
+        }
+    }
 
     private static bool IsFullyInside(RectangleF inner, RectangleF outer) =>
         inner.Left >= outer.Left &&
@@ -43,21 +69,23 @@ public class Car
     {
         var hw = Width * 0.5f;
         var hh = Height * 0.5f;
-        var corners = new (float lx, float ly)[]
-        {
+        Span<PointF> corners = stackalloc PointF[4];
+        var c = MathF.Cos(HeadingRadians);
+        var s = MathF.Sin(HeadingRadians);
+
+        ReadOnlySpan<(float lx, float lyGdi)> local =
+        [
             (-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)
-        };
+        ];
 
         var minX = float.PositiveInfinity;
         var maxX = float.NegativeInfinity;
         var minY = float.PositiveInfinity;
         var maxY = float.NegativeInfinity;
 
-        var c = MathF.Cos(HeadingRadians);
-        var s = MathF.Sin(HeadingRadians);
-
-        foreach (var (lx, lyGdi) in corners)
+        for (var i = 0; i < 4; i++)
         {
+            var (lx, lyGdi) = local[i];
             var lyFwd = -lyGdi;
             var wx = cx + lx * c + lyFwd * s;
             var wy = cy + lx * s - lyFwd * c;
@@ -78,6 +106,9 @@ public class Car
         bool backward,
         RectangleF playArea)
     {
+        if (IsParked)
+            return;
+
         if (turnLeft)
             HeadingRadians -= RotateSpeed * deltaSeconds;
         if (turnRight)

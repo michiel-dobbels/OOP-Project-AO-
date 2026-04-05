@@ -3,9 +3,16 @@ using ParkingGarage.Models;
 
 namespace ParkingGarage;
 
+public enum GamePhase
+{
+    Playing,
+    Crashed
+}
 
 public class ParkingGame
 {
+    public const int MaxCars = 5;
+
     private const float SpotWidth = 110f;
     private const float SpotHeight = 170f;
     private const float SpotGap = 24f;
@@ -14,17 +21,35 @@ public class ParkingGame
     private const float Margin = 40f;
     private const float AisleBelowSpots = 100f;
 
+    private static readonly Color[] CarFlashColors =
+    [
+        Color.FromArgb(66, 165, 245),
+        Color.FromArgb(239, 83, 80),
+        Color.FromArgb(102, 187, 106),
+        Color.FromArgb(255, 238, 88),
+        Color.FromArgb(171, 71, 188)
+    ];
+
+    private readonly List<Car> _cars = [];
+    private float _spawnCenterY;
+
     public ParkingGame(int clientWidth, int clientHeight)
     {
         ClientWidth = clientWidth;
         ClientHeight = clientHeight;
-        RebuildLayout();
+        LayoutSpotsAndPlayArea();
+        ResetSimulation();
     }
 
     public int ClientWidth { get; private set; }
     public int ClientHeight { get; private set; }
 
-    public Car Car { get; private set; } = null!;
+    public GamePhase Phase { get; private set; } = GamePhase.Playing;
+
+    public Car? ActiveCar { get; private set; }
+
+    public IReadOnlyList<Car> Cars => _cars;
+
     public ParkingSpot[] Spots { get; private set; } = [];
 
     public RectangleF PlayArea { get; private set; }
@@ -33,30 +58,85 @@ public class ParkingGame
     {
         ClientWidth = width;
         ClientHeight = height;
-        RebuildLayout();
+        LayoutSpotsAndPlayArea();
+        ResetSimulation();
+    }
+
+    public void ResetSimulation()
+    {
+        Phase = GamePhase.Playing;
+        _cars.Clear();
+        var first = CreateCarAtSpawn(colorIndex: 0);
+        _cars.Add(first);
+        ActiveCar = first;
     }
 
     public int AvailableSpotCount
     {
         get
         {
-            var b = Car.AxisAlignedBounds;
             var n = 0;
             foreach (var s in Spots)
             {
-                if (!s.IsOccupiedBy(b))
+                var occupied = false;
+                foreach (var c in _cars)
+                {
+                    if (s.IsOccupiedBy(c.AxisAlignedBounds))
+                    {
+                        occupied = true;
+                        break;
+                    }
+                }
+
+                if (!occupied)
                     n++;
             }
+
             return n;
+        }
+    }
+
+    public void TryParkCurrentCar()
+    {
+        if (Phase != GamePhase.Playing || ActiveCar == null || ActiveCar.IsParked)
+            return;
+
+        ActiveCar.IsParked = true;
+        if (_cars.Count < MaxCars)
+        {
+            var next = CreateCarAtSpawn(_cars.Count);
+            _cars.Add(next);
+            ActiveCar = next;
+        }
+        else
+        {
+            ActiveCar = null;
         }
     }
 
     public void Update(float deltaSeconds, bool left, bool right, bool up, bool down)
     {
-        Car.Drive(deltaSeconds, left, right, up, down, PlayArea);
+        if (Phase != GamePhase.Playing)
+            return;
+
+        ActiveCar?.Drive(deltaSeconds, left, right, up, down, PlayArea);
+
+        if (ActiveCar == null)
+            return;
+
+        foreach (var other in _cars)
+        {
+            if (ReferenceEquals(other, ActiveCar))
+                continue;
+            if (CarCollision.Intersects(ActiveCar, other))
+            {
+                Phase = GamePhase.Crashed;
+                return;
+            }
+        }
     }
 
-    private void RebuildLayout()
+    private void LayoutSpotsAndPlayArea()
     {
         var totalWidth = 4 * SpotWidth + 3 * SpotGap;
         var startX = (ClientWidth - totalWidth) / 2f;
@@ -78,10 +158,15 @@ public class ParkingGame
             ClientWidth - 2 * Margin,
             ClientHeight - 2 * Margin);
 
-        var carTopLeftX = PlayArea.Left + (PlayArea.Width - CarWidth) / 2f;
         var carTopLeftY = startY + SpotHeight + AisleBelowSpots;
-        var cx = carTopLeftX + CarWidth / 2f;
-        var cy = carTopLeftY + CarLength / 2f;
-        Car = new Car(cx, cy, CarWidth, CarLength, headingRadians: 0f);
+        _spawnCenterY = carTopLeftY + CarLength / 2f;
+    }
+
+    private Car CreateCarAtSpawn(int colorIndex)
+    {
+        var cx = PlayArea.Left + CarWidth / 2f + 14f;
+        var heading = MathF.PI / 2f;
+        var color = CarFlashColors[Math.Clamp(colorIndex, 0, CarFlashColors.Length - 1)];
+        return new Car(cx, _spawnCenterY, CarWidth, CarLength, heading, color);
     }
 }

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using ParkingGarage.Models;
 
 namespace ParkingGarage;
 
@@ -10,6 +11,12 @@ public class GameForm : Form
     private readonly HashSet<Keys> _keysDown = [];
     private readonly Stopwatch _sw = new();
     private long _lastTicks;
+
+    private readonly Panel _crashOverlay;
+    private readonly TableLayoutPanel _crashContent;
+    private readonly Label _crashLabel;
+    private readonly Button _btnHerstart;
+    private readonly Button _btnStopSimulatie;
 
     private static readonly Color GreenLed = Color.FromArgb(80, 220, 120);
     private static readonly Color RedLed = Color.FromArgb(240, 70, 70);
@@ -27,17 +34,129 @@ public class GameForm : Form
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
 
+        _crashLabel = new Label
+        {
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleCenter,
+            ForeColor = Color.WhiteSmoke,
+            Font = new Font("Segoe UI", 11F, FontStyle.Regular, GraphicsUnit.Point),
+            Text = "",
+            Padding = new Padding(24, 16, 24, 8),
+            BackColor = Color.Transparent,
+            MaximumSize = new Size(720, 0)
+        };
+
+        _btnHerstart = new Button
+        {
+            Text = "Herstart",
+            AutoSize = true,
+            BackColor = AppColors.PanelControl,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.WhiteSmoke,
+            Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
+            Margin = new Padding(8),
+            Padding = new Padding(24, 10, 24, 10),
+            UseVisualStyleBackColor = false
+        };
+        _btnHerstart.FlatAppearance.BorderColor = Color.Gainsboro;
+        _btnHerstart.Click += (_, _) => OnHerstart();
+
+        _btnStopSimulatie = new Button
+        {
+            Text = "stop simulatie",
+            AutoSize = true,
+            BackColor = AppColors.PanelControl,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.WhiteSmoke,
+            Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
+            Margin = new Padding(8),
+            Padding = new Padding(24, 10, 24, 10),
+            UseVisualStyleBackColor = false
+        };
+        _btnStopSimulatie.FlatAppearance.BorderColor = Color.Gainsboro;
+        _btnStopSimulatie.Click += (_, _) => Close();
+
+        var buttonRow = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Top,
+            Padding = new Padding(0, 8, 0, 0),
+            BackColor = Color.Transparent
+        };
+        buttonRow.Controls.Add(_btnHerstart);
+        buttonRow.Controls.Add(_btnStopSimulatie);
+
+        _crashContent = new TableLayoutPanel
+        {
+            Dock = DockStyle.None,
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Color.Transparent
+        };
+        _crashContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _crashContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _crashContent.Controls.Add(_crashLabel, 0, 0);
+        _crashContent.Controls.Add(buttonRow, 0, 1);
+
+        _crashOverlay = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Visible = false,
+            BackColor = Color.FromArgb(235, 22, 28, 36)
+        };
+        _crashOverlay.Controls.Add(_crashContent);
+        _crashOverlay.Resize += (_, _) => CenterCrashContent();
+
+        Controls.Add(_crashOverlay);
+        _crashOverlay.BringToFront();
+
         _timer.Tick += OnTick;
         Load += (_, _) =>
         {
             _sw.Start();
             _lastTicks = _sw.ElapsedTicks;
             _timer.Start();
+            CenterCrashContent();
         };
         FormClosed += (_, _) => _timer.Stop();
 
         KeyDown += OnKeyDown;
         KeyUp += OnKeyUp;
+    }
+
+    private void CenterCrashContent()
+    {
+        _crashContent.PerformLayout();
+        var w = _crashContent.PreferredSize.Width > 0 ? _crashContent.PreferredSize.Width : _crashContent.Width;
+        var h = _crashContent.PreferredSize.Height > 0 ? _crashContent.PreferredSize.Height : _crashContent.Height;
+        _crashContent.SetBounds(
+            Math.Max(0, (_crashOverlay.ClientSize.Width - w) / 2),
+            Math.Max(0, (_crashOverlay.ClientSize.Height - h) / 2),
+            w,
+            h);
+    }
+
+    private void OnHerstart()
+    {
+        _crashOverlay.Visible = false;
+        _game.ResetSimulation();
+        _lastTicks = _sw.ElapsedTicks;
+        _timer.Start();
+        Invalidate();
+    }
+
+    private void ShowCrashOverlay()
+    {
+        _crashLabel.Text =
+            "Auto's gebotst, haal het aanrijdingsformulier uit het handschoenkastje.";
+        _crashOverlay.Visible = true;
+        _crashOverlay.BringToFront();
+        CenterCrashContent();
+        Invalidate();
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -52,10 +171,18 @@ public class GameForm : Form
     private void OnKeyUp(object? sender, KeyEventArgs e)
     {
         _keysDown.Remove(e.KeyCode);
+        if (e.KeyCode == Keys.Space && _game.Phase == GamePhase.Playing)
+        {
+            _game.TryParkCurrentCar();
+            e.Handled = true;
+        }
     }
 
     private void OnTick(object? sender, EventArgs e)
     {
+        if (_game.Phase == GamePhase.Crashed)
+            return;
+
         var now = _sw.ElapsedTicks;
         var dt = (now - _lastTicks) / (float)Stopwatch.Frequency;
         _lastTicks = now;
@@ -68,6 +195,12 @@ public class GameForm : Form
             _keysDown.Contains(Keys.Right),
             _keysDown.Contains(Keys.Up),
             _keysDown.Contains(Keys.Down));
+
+        if (_game.Phase == GamePhase.Crashed)
+        {
+            _timer.Stop();
+            ShowCrashOverlay();
+        }
 
         Invalidate();
     }
@@ -88,7 +221,16 @@ public class GameForm : Form
             var r = spot.SpotBounds;
             g.DrawRectangle(linePen, r.X, r.Y, r.Width, r.Height);
 
-            var occupied = spot.IsOccupiedBy(_game.Car.AxisAlignedBounds);
+            var occupied = false;
+            foreach (var car in _game.Cars)
+            {
+                if (spot.IsOccupiedBy(car.AxisAlignedBounds))
+                {
+                    occupied = true;
+                    break;
+                }
+            }
+
             var fill = occupied ? RedLed : GreenLed;
             using var brush = new SolidBrush(fill);
             const float ledR = 9f;
@@ -96,7 +238,21 @@ public class GameForm : Form
             g.DrawEllipse(linePen, spot.LedCenter.X - ledR, spot.LedCenter.Y - ledR, ledR * 2, ledR * 2);
         }
 
-        var car = _game.Car;
+        foreach (var car in _game.Cars)
+            DrawCar(g, linePen, car);
+
+        using var hintFont = new Font("Segoe UI", 9F, FontStyle.Italic, GraphicsUnit.Point);
+        using var hintBrush = new SolidBrush(Color.FromArgb(160, 160, 160));
+        g.DrawString(
+            "← / → = sturen   |   ↑ / ↓ = vooruit / achteruit   |   Spatie = parkeren (volgende auto)   |   ESC = sluiten",
+            hintFont,
+            hintBrush,
+            16f,
+            ClientSize.Height - 36f);
+    }
+
+    private static void DrawCar(Graphics g, Pen outlinePen, Car car)
+    {
         var hw = car.Width * 0.5f;
         var hh = car.Height * 0.5f;
         var state = g.Save();
@@ -105,28 +261,32 @@ public class GameForm : Form
             g.TranslateTransform(car.CenterX, car.CenterY);
             g.RotateTransform(car.HeadingDegreesClockwiseFromUp);
 
-            using var carBrush = new SolidBrush(Color.FromArgb(200, 200, 210));
+            using var carBrush = new SolidBrush(car.BodyColor);
             g.FillRectangle(carBrush, -hw, -hh, car.Width, car.Height);
-            g.DrawRectangle(linePen, -hw, -hh, car.Width, car.Height);
+            g.DrawRectangle(outlinePen, -hw, -hh, car.Width, car.Height);
 
-            using var noseBrush = new SolidBrush(Color.FromArgb(130, 130, 145));
-            PointF[] nose =
+            var nose = Darken(car.BodyColor, 0.58f);
+            using var noseBrush = new SolidBrush(nose);
+            PointF[] nosePoly =
             [
                 new(0, -hh + 3),
                 new(-5, -hh + 16),
                 new(5, -hh + 16)
             ];
-            g.FillPolygon(noseBrush, nose);
+            g.FillPolygon(noseBrush, nosePoly);
         }
         finally
         {
             g.Restore(state);
         }
-
-        using var hintFont = new Font("Segoe UI", 9F, FontStyle.Italic, GraphicsUnit.Point);
-        using var hintBrush = new SolidBrush(Color.FromArgb(160, 160, 160));
-        g.DrawString("← / → = sturen   |   ↑ / ↓ = vooruit / achteruit   |   ESC = sluiten", hintFont, hintBrush, 16f, ClientSize.Height - 36f);
     }
+
+    private static Color Darken(Color c, float factor) =>
+        Color.FromArgb(
+            c.A,
+            (int)Math.Clamp(c.R * factor, 0, 255),
+            (int)Math.Clamp(c.G * factor, 0, 255),
+            (int)Math.Clamp(c.B * factor, 0, 255));
 
     protected override void OnResize(EventArgs e)
     {
