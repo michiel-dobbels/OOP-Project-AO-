@@ -30,8 +30,8 @@ public class Car
     /// <summary>Parked cars no longer move or accept input.</summary>
     public bool IsParked { get; set; }
 
-    public float Speed { get; set; } = 200f;
-    public float RotateSpeed { get; set; } = 2.85f;
+    public float Speed { get; set; } = 190f;
+    public float RotateSpeed { get; set; } = 2.35f;
 
     public RectangleF AxisAlignedBounds => ComputeAxisAlignedBounds(CenterX, CenterY);
 
@@ -64,6 +64,26 @@ public class Car
         inner.Right <= outer.Right &&
         inner.Top >= outer.Top &&
         inner.Bottom <= outer.Bottom;
+
+    /// <summary>Nudges the center so the oriented AABB fits inside the play area (e.g. after spawn).</summary>
+    public void EnsureInside(RectangleF playArea)
+    {
+        for (var i = 0; i < 6; i++)
+        {
+            var b = AxisAlignedBounds;
+            if (IsFullyInside(b, playArea))
+                return;
+
+            if (b.Left < playArea.Left)
+                CenterX += playArea.Left - b.Left;
+            if (b.Right > playArea.Right)
+                CenterX -= b.Right - playArea.Right;
+            if (b.Top < playArea.Top)
+                CenterY += playArea.Top - b.Top;
+            if (b.Bottom > playArea.Bottom)
+                CenterY -= b.Bottom - playArea.Bottom;
+        }
+    }
 
     private RectangleF ComputeAxisAlignedBounds(float cx, float cy)
     {
@@ -109,15 +129,23 @@ public class Car
         if (IsParked)
             return;
 
-        if (turnLeft)
-            HeadingRadians -= RotateSpeed * deltaSeconds;
-        if (turnRight)
-            HeadingRadians += RotateSpeed * deltaSeconds;
+        var forwardOnly = forward && !backward;
+        var backwardOnly = backward && !forward;
+        var moving = forwardOnly || backwardOnly;
+
+        if (moving)
+        {
+            var steerMul = backwardOnly ? -1f : 1f;
+            if (turnLeft)
+                HeadingRadians -= RotateSpeed * deltaSeconds * steerMul;
+            if (turnRight)
+                HeadingRadians += RotateSpeed * deltaSeconds * steerMul;
+        }
 
         var move = 0f;
-        if (forward)
+        if (forwardOnly)
             move += Speed * deltaSeconds;
-        if (backward)
+        if (backwardOnly)
             move -= Speed * 0.55f * deltaSeconds;
         if (move == 0f)
             return;
@@ -144,5 +172,7 @@ public class Car
         var by = ComputeAxisAlignedBounds(CenterX, ncy);
         if (IsFullyInside(by, playArea))
             CenterY = ncy;
+
+        EnsureInside(playArea);
     }
 }

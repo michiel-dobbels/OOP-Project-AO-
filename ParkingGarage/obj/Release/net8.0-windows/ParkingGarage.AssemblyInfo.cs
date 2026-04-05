@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ParkingGarage")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0326cffe4663d4932e37c3e80be016fc31269af8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+29efb3e5e57324c764ab8c82cd028787b9e9148d")]
 [assembly: System.Reflection.AssemblyProductAttribute("ParkingGarage")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ParkingGarage")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

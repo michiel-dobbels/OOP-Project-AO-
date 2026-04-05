@@ -13,13 +13,13 @@ public class ParkingGame
 {
     public const int MaxCars = 5;
 
-    private const float SpotWidth = 110f;
-    private const float SpotHeight = 170f;
-    private const float SpotGap = 24f;
-    private const float CarWidth = 28f;
-    private const float CarLength = 52f;
+    private const float SpotWidth = 151.2f;
+    private const float SpotHeight = 230.4f;
+    /// auto 25% minder breed and 15% minder lang
+    private const float CarWidth = (SpotWidth - 4f) * 0.75f;
+    private const float CarLength = (SpotHeight - 6f) * 0.85f;
     private const float Margin = 40f;
-    private const float AisleBelowSpots = 100f;
+    private const float AisleBelowSpots = 158.4f;
 
     private static readonly Color[] CarFlashColors =
     [
@@ -138,14 +138,14 @@ public class ParkingGame
 
     private void LayoutSpotsAndPlayArea()
     {
-        var totalWidth = 4 * SpotWidth + 3 * SpotGap;
+        var totalWidth = 4 * SpotWidth;
         var startX = (ClientWidth - totalWidth) / 2f;
         var startY = Margin + 48f;
 
         Spots = new ParkingSpot[4];
         for (var i = 0; i < 4; i++)
         {
-            var x = startX + i * (SpotWidth + SpotGap);
+            var x = startX + i * SpotWidth;
             var spotRect = new RectangleF(x, startY, SpotWidth, SpotHeight);
             var ledX = x + SpotWidth / 2f;
             var ledY = startY + SpotHeight + 14f;
@@ -164,9 +164,18 @@ public class ParkingGame
 
     private Car CreateCarAtSpawn(int colorIndex)
     {
-        var cx = PlayArea.Left + CarWidth / 2f + 14f;
         var heading = MathF.PI / 2f;
         var color = CarFlashColors[Math.Clamp(colorIndex, 0, CarFlashColors.Length - 1)];
-        return new Car(cx, _spawnCenterY, CarWidth, CarLength, heading, color);
+
+        var hw = CarWidth * 0.5f;
+        var hh = CarLength * 0.5f;
+        var halfDiag = MathF.Sqrt(hw * hw + hh * hh);
+
+        var cx = PlayArea.Left + halfDiag + 12f;
+        var cy = _spawnCenterY;
+
+        var car = new Car(cx, cy, CarWidth, CarLength, heading, color);
+        car.EnsureInside(PlayArea);
+        return car;
     }
 }

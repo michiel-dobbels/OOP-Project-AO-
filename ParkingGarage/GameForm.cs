@@ -216,11 +216,10 @@ public class GameForm : Form
         g.DrawString($"beschikbare plaatsen: {free}", counterFont, Brushes.WhiteSmoke, 16f, 12f);
 
         using var linePen = new Pen(Color.White, 2f) { LineJoin = LineJoin.Miter };
+        DrawParkingLanes(g, linePen, _game.Spots);
+
         foreach (var spot in _game.Spots)
         {
-            var r = spot.SpotBounds;
-            g.DrawRectangle(linePen, r.X, r.Y, r.Width, r.Height);
-
             var occupied = false;
             foreach (var car in _game.Cars)
             {
@@ -244,11 +243,32 @@ public class GameForm : Form
         using var hintFont = new Font("Segoe UI", 9F, FontStyle.Italic, GraphicsUnit.Point);
         using var hintBrush = new SolidBrush(Color.FromArgb(160, 160, 160));
         g.DrawString(
-            "← / → = sturen   |   ↑ / ↓ = vooruit / achteruit   |   Spatie = parkeren (volgende auto)   |   ESC = sluiten",
+            "↑ vooruit / ↓ achteruit — ← / → sturen tijdens rijden (omgekeerd bij achteruit) — Spatie parkeren — ESC sluiten",
             hintFont,
             hintBrush,
             16f,
             ClientSize.Height - 36f);
+    }
+
+    /// parkeerplaatsen gescheiden door zijdelingse lijnen
+    private static void DrawParkingLanes(Graphics g, Pen pen, ParkingSpot[] spots)
+    {
+        if (spots.Length == 0)
+            return;
+
+        var r0 = spots[0].SpotBounds;
+        var w = r0.Width;
+        var h = r0.Height;
+        var left = r0.Left;
+        var top = r0.Top;
+        var totalW = spots.Length * w;
+
+        g.DrawLine(pen, left, top, left + totalW, top);
+        for (var i = 0; i <= spots.Length; i++)
+        {
+            var x = left + i * w;
+            g.DrawLine(pen, x, top, x, top + h);
+        }
     }
 
     private static void DrawCar(Graphics g, Pen outlinePen, Car car)
@@ -267,11 +287,14 @@ public class GameForm : Form
 
             var nose = Darken(car.BodyColor, 0.58f);
             using var noseBrush = new SolidBrush(nose);
+            var tipY = -hh + Math.Max(4f, hh * 0.06f);
+            var baseY = -hh + Math.Max(18f, hh * 0.24f);
+            var halfW = Math.Max(5f, car.Width * 0.15f);
             PointF[] nosePoly =
             [
-                new(0, -hh + 3),
-                new(-5, -hh + 16),
-                new(5, -hh + 16)
+                new(0, tipY),
+                new(-halfW, baseY),
+                new(halfW, baseY)
             ];
             g.FillPolygon(noseBrush, nosePoly);
         }
