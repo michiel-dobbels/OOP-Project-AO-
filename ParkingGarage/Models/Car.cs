@@ -35,7 +35,19 @@ public class Car
 
     public RectangleF AxisAlignedBounds => ComputeAxisAlignedBounds(CenterX, CenterY);
 
+    /// <summary>Set at end of <see cref="Drive"/> when throttle was held but the car could not move while touching the play-area edge.</summary>
+    public bool WallImpactThisFrame { get; private set; }
+
     public float HeadingDegreesClockwiseFromUp => HeadingRadians * (180f / MathF.PI);
+
+    public bool TouchesPlayAreaEdge(RectangleF playArea, float epsilon = 2.5f)
+    {
+        var b = AxisAlignedBounds;
+        return b.Left <= playArea.Left + epsilon ||
+               b.Right >= playArea.Right - epsilon ||
+               b.Top <= playArea.Top + epsilon ||
+               b.Bottom >= playArea.Bottom - epsilon;
+    }
 
     public void GetWorldCorners(Span<PointF> destination)
     {
@@ -129,6 +141,8 @@ public class Car
         if (IsParked)
             return;
 
+        WallImpactThisFrame = false;
+
         var forwardOnly = forward && !backward;
         var backwardOnly = backward && !forward;
         var moving = forwardOnly || backwardOnly;
@@ -149,6 +163,9 @@ public class Car
             move -= Speed * 0.55f * deltaSeconds;
         if (move == 0f)
             return;
+
+        var startCx = CenterX;
+        var startCy = CenterY;
 
         var fh = HeadingRadians;
         var vx = MathF.Sin(fh) * move;
@@ -174,5 +191,9 @@ public class Car
             CenterY = ncy;
 
         EnsureInside(playArea);
+
+        var moved = MathF.Abs(CenterX - startCx) > 0.35f || MathF.Abs(CenterY - startCy) > 0.35f;
+        if (!moved && TouchesPlayAreaEdge(playArea))
+            WallImpactThisFrame = true;
     }
 }

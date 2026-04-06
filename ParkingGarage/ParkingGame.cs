@@ -9,6 +9,13 @@ public enum GamePhase
     Crashed
 }
 
+public enum CrashKind
+{
+    None,
+    CarCollision,
+    Wall
+}
+
 public class ParkingGame
 {
     public const int MaxCars = 5;
@@ -46,6 +53,8 @@ public class ParkingGame
 
     public GamePhase Phase { get; private set; } = GamePhase.Playing;
 
+    public CrashKind LastCrashKind { get; private set; }
+
     public Car? ActiveCar { get; private set; }
 
     public IReadOnlyList<Car> Cars => _cars;
@@ -70,6 +79,7 @@ public class ParkingGame
     public void ResetSimulation()
     {
         Phase = GamePhase.Playing;
+        LastCrashKind = CrashKind.None;
         _cars.Clear();
         var first = CreateCarAtSpawn(colorIndex: 0);
         _cars.Add(first);
@@ -135,9 +145,16 @@ public class ParkingGame
                 continue;
             if (CarCollision.Intersects(ActiveCar, other))
             {
+                LastCrashKind = CrashKind.CarCollision;
                 Phase = GamePhase.Crashed;
                 return;
             }
+        }
+
+        if (ActiveCar.WallImpactThisFrame)
+        {
+            LastCrashKind = CrashKind.Wall;
+            Phase = GamePhase.Crashed;
         }
     }
 

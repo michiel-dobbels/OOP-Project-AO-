@@ -182,8 +182,9 @@ public class GameSurface : Panel
 
     private void ShowCrashOverlay()
     {
-        _crashLabel.Text =
-            "Auto's gebotst, haal het aanrijdingsformulier uit het handschoenkastje.";
+        _crashLabel.Text = _game?.LastCrashKind == CrashKind.Wall
+            ? "Auto is tegen de muur gereden, hopelijk heeft niemand het gezien."
+            : "Auto's gebotst, haal het aanrijdingsformulier uit het handschoenkastje.";
         _crashOverlay.Visible = true;
         _crashOverlay.BringToFront();
         CenterCrashContent();
