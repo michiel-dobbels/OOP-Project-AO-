@@ -56,6 +56,11 @@ public class ParkingGame
 
     public void Resize(int width, int height)
     {
+        if (width <= 0 || height <= 0)
+            return;
+        if (width == ClientWidth && height == ClientHeight)
+            return;
+
         ClientWidth = width;
         ClientHeight = height;
         LayoutSpotsAndPlayArea();

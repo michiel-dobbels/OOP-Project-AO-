@@ -1,8 +1,10 @@
 namespace ParkingGarage;
 
-partial class MainMenuForm
+partial class MainForm
 {
     private System.ComponentModel.IContainer components = null!;
+
+    private FlowLayoutPanel _menuPanel = null!;
 
     protected override void Dispose(bool disposing)
     {
@@ -17,7 +19,7 @@ partial class MainMenuForm
         var lblTitle = new Label();
         var btnStart = new Button();
         var btnExit = new Button();
-        var panel = new FlowLayoutPanel();
+        _menuPanel = new FlowLayoutPanel();
         SuspendLayout();
 
         lblTitle.AutoSize = true;
@@ -50,26 +52,26 @@ partial class MainMenuForm
         btnExit.UseVisualStyleBackColor = false;
         btnExit.Click += BtnExit_Click;
 
-        panel.AutoSize = true;
-        panel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        panel.BackColor = AppColors.FieldBackground;
-        panel.FlowDirection = FlowDirection.TopDown;
-        panel.WrapContents = false;
-        panel.Controls.Add(lblTitle);
-        panel.Controls.Add(btnStart);
-        panel.Controls.Add(btnExit);
-        panel.Dock = DockStyle.Fill;
-        panel.Padding = new Padding(40);
+        _menuPanel.AutoSize = true;
+        _menuPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _menuPanel.BackColor = AppColors.FieldBackground;
+        _menuPanel.FlowDirection = FlowDirection.TopDown;
+        _menuPanel.WrapContents = false;
+        _menuPanel.Controls.Add(lblTitle);
+        _menuPanel.Controls.Add(btnStart);
+        _menuPanel.Controls.Add(btnExit);
+        _menuPanel.Dock = DockStyle.Fill;
+        _menuPanel.Padding = new Padding(40);
 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         BackColor = AppColors.FieldBackground;
-        ClientSize = new Size(560, 360);
-        Controls.Add(panel);
+        ClientSize = AppLayout.SimulationClientSize;
+        Controls.Add(_menuPanel);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        Text = "Parking — menu";
+        Text = "Parking — simulatie";
         ResumeLayout(false);
     }
 }

@@ -4,9 +4,10 @@ using ParkingGarage.Models;
 
 namespace ParkingGarage;
 
-public class GameForm : Form
+/// <summary>Parking simulation view (same pixel-sized spots/cars; field size comes from panel).</summary>
+public class GameSurface : Panel
 {
-    private readonly ParkingGame _game;
+    private ParkingGame? _game;
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 16 };
     private readonly HashSet<Keys> _keysDown = [];
     private readonly Stopwatch _sw = new();
@@ -21,18 +22,20 @@ public class GameForm : Form
     private static readonly Color GreenLed = Color.FromArgb(80, 220, 120);
     private static readonly Color RedLed = Color.FromArgb(240, 70, 70);
 
-    public GameForm()
+    public event Action? ExitToMenu;
+
+    public GameSurface()
     {
-        _game = new ParkingGame(960, 600);
-        Text = "Parking — simulatie";
-        ClientSize = new Size(960, 600);
+        SetStyle(
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.UserPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        UpdateStyles();
         BackColor = AppColors.FieldBackground;
         ForeColor = Color.WhiteSmoke;
-        DoubleBuffered = true;
-        KeyPreview = true;
-        StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.FixedSingle;
-        MaximizeBox = false;
+        TabStop = true;
 
         _crashLabel = new Label
         {
@@ -74,7 +77,7 @@ public class GameForm : Form
             UseVisualStyleBackColor = false
         };
         _btnStopSimulatie.FlatAppearance.BorderColor = Color.Gainsboro;
-        _btnStopSimulatie.Click += (_, _) => Close();
+        _btnStopSimulatie.Click += (_, _) => ExitToMenu?.Invoke();
 
         var buttonRow = new FlowLayoutPanel
         {
@@ -115,17 +118,45 @@ public class GameForm : Form
         _crashOverlay.BringToFront();
 
         _timer.Tick += OnTick;
-        Load += (_, _) =>
-        {
-            _sw.Start();
-            _lastTicks = _sw.ElapsedTicks;
-            _timer.Start();
-            CenterCrashContent();
-        };
-        FormClosed += (_, _) => _timer.Stop();
+    }
 
-        KeyDown += OnKeyDown;
-        KeyUp += OnKeyUp;
+    public void StartSession()
+    {
+        if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            return;
+
+        _game = new ParkingGame(ClientSize.Width, ClientSize.Height);
+        _crashOverlay.Visible = false;
+        _sw.Restart();
+        _lastTicks = _sw.ElapsedTicks;
+        _timer.Start();
+        Invalidate();
+    }
+
+    public void StopSession()
+    {
+        _timer.Stop();
+        _keysDown.Clear();
+        _crashOverlay.Visible = false;
+    }
+
+    public void NotifyKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode is Keys.Left or Keys.Right or Keys.Up or Keys.Down)
+        {
+            _keysDown.Add(e.KeyCode);
+            e.Handled = true;
+        }
+    }
+
+    public void NotifyKeyUp(KeyEventArgs e)
+    {
+        _keysDown.Remove(e.KeyCode);
+        if (e.KeyCode == Keys.Space && _game?.Phase == GamePhase.Playing)
+        {
+            _game.TryParkCurrentCar();
+            e.Handled = true;
+        }
     }
 
     private void CenterCrashContent()
@@ -143,7 +174,7 @@ public class GameForm : Form
     private void OnHerstart()
     {
         _crashOverlay.Visible = false;
-        _game.ResetSimulation();
+        _game?.ResetSimulation();
         _lastTicks = _sw.ElapsedTicks;
         _timer.Start();
         Invalidate();
@@ -159,28 +190,9 @@ public class GameForm : Form
         Invalidate();
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.KeyCode is Keys.Left or Keys.Right or Keys.Up or Keys.Down)
-        {
-            _keysDown.Add(e.KeyCode);
-            e.Handled = true;
-        }
-    }
-
-    private void OnKeyUp(object? sender, KeyEventArgs e)
-    {
-        _keysDown.Remove(e.KeyCode);
-        if (e.KeyCode == Keys.Space && _game.Phase == GamePhase.Playing)
-        {
-            _game.TryParkCurrentCar();
-            e.Handled = true;
-        }
-    }
-
     private void OnTick(object? sender, EventArgs e)
     {
-        if (_game.Phase == GamePhase.Crashed)
+        if (_game == null || _game.Phase == GamePhase.Crashed)
             return;
 
         var now = _sw.ElapsedTicks;
@@ -208,6 +220,9 @@ public class GameForm : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
+        if (_game == null)
+            return;
+
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
 
@@ -243,14 +258,13 @@ public class GameForm : Form
         using var hintFont = new Font("Segoe UI", 9F, FontStyle.Italic, GraphicsUnit.Point);
         using var hintBrush = new SolidBrush(Color.FromArgb(160, 160, 160));
         g.DrawString(
-            "↑ vooruit / ↓ achteruit — ← / → sturen tijdens rijden (omgekeerd bij achteruit) — Spatie parkeren — ESC sluiten",
+            "↑ vooruit / ↓ achteruit — ← / → sturen tijdens rijden (omgekeerd bij achteruit) — Spatie parkeren — ESC = menu",
             hintFont,
             hintBrush,
             16f,
             ClientSize.Height - 36f);
     }
 
-    /// parkeerplaatsen gescheiden door zijdelingse lijnen
     private static void DrawParkingLanes(Graphics g, Pen pen, ParkingSpot[] spots)
     {
         if (spots.Length == 0)
@@ -314,18 +328,14 @@ public class GameForm : Form
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
-        if (ClientSize.Width > 0 && ClientSize.Height > 0)
+        if (_game != null && ClientSize.Width > 0 && ClientSize.Height > 0)
             _game.Resize(ClientSize.Width, ClientSize.Height);
     }
 
-    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    protected override void Dispose(bool disposing)
     {
-        if (keyData == Keys.Escape)
-        {
-            Close();
-            return true;
-        }
-
-        return base.ProcessCmdKey(ref msg, keyData);
+        if (disposing)
+            _timer.Dispose();
+        base.Dispose(disposing);
     }
 }

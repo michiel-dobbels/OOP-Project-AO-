@@ -9,6 +9,6 @@ static class Program
         
         
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainMenuForm());
+        Application.Run(new MainForm());
     }    
 }
