@@ -13,3 +13,8 @@ C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\n
 C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.genruntimeconfig.cache
 C:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ref\ParkingGarage.dll
 c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.sourcelink.json
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\BlueCar.png
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\RedCar.png
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\GreenCar.png
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\YellowCar.png
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\PurpleCar.png

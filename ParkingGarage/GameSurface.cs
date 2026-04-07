@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.IO;
 using ParkingGarage.Models;
 
 namespace ParkingGarage;
@@ -18,6 +19,11 @@ public class GameSurface : Panel
     private readonly Label _crashLabel;
     private readonly Button _btnHerstart;
     private readonly Button _btnStopSimulatie;
+    private readonly Image? _blueCarSprite;
+    private readonly Image? _redCarSprite;
+    private readonly Image? _greenCarSprite;
+    private readonly Image? _yellowCarSprite;
+    private readonly Image? _purpleCarSprite;
 
     private static readonly Color GreenLed = Color.FromArgb(80, 220, 120);
     private static readonly Color RedLed = Color.FromArgb(240, 70, 70);
@@ -36,6 +42,26 @@ public class GameSurface : Panel
         BackColor = AppColors.FieldBackground;
         ForeColor = Color.WhiteSmoke;
         TabStop = true;
+
+        var bluePath = Path.Combine(AppContext.BaseDirectory, "Assets", "BlueCar.png");
+        if (File.Exists(bluePath))
+            _blueCarSprite = Image.FromFile(bluePath);
+
+        var redPath = Path.Combine(AppContext.BaseDirectory, "Assets", "RedCar.png");
+        if (File.Exists(redPath))
+            _redCarSprite = Image.FromFile(redPath);
+
+        var greenPath = Path.Combine(AppContext.BaseDirectory, "Assets", "GreenCar.png");
+        if (File.Exists(greenPath))
+            _greenCarSprite = Image.FromFile(greenPath);
+
+        var yellowPath = Path.Combine(AppContext.BaseDirectory, "Assets", "YellowCar.png");
+        if (File.Exists(yellowPath))
+            _yellowCarSprite = Image.FromFile(yellowPath);
+
+        var purplePath = Path.Combine(AppContext.BaseDirectory, "Assets", "PurpleCar.png");
+        if (File.Exists(purplePath))
+            _purpleCarSprite = Image.FromFile(purplePath);
 
         _crashLabel = new Label
         {
@@ -253,8 +279,20 @@ public class GameSurface : Panel
             g.DrawEllipse(linePen, spot.LedCenter.X - ledR, spot.LedCenter.Y - ledR, ledR * 2, ledR * 2);
         }
 
-        foreach (var car in _game.Cars)
-            DrawCar(g, linePen, car);
+        for (var i = 0; i < _game.Cars.Count; i++)
+        {
+            var car = _game.Cars[i];
+            var sprite = i switch
+            {
+                0 when _blueCarSprite != null => _blueCarSprite,
+                1 when _redCarSprite != null => _redCarSprite,
+                2 when _greenCarSprite != null => _greenCarSprite,
+                3 when _yellowCarSprite != null => _yellowCarSprite,
+                4 when _purpleCarSprite != null => _purpleCarSprite,
+                _ => null
+            };
+            DrawCar(g, linePen, car, sprite);
+        }
 
         using var hintFont = new Font("Segoe UI", 9F, FontStyle.Italic, GraphicsUnit.Point);
         using var hintBrush = new SolidBrush(Color.FromArgb(160, 160, 160));
@@ -286,32 +324,55 @@ public class GameSurface : Panel
         }
     }
 
-    private static void DrawCar(Graphics g, Pen outlinePen, Car car)
+    private static void DrawCar(Graphics g, Pen outlinePen, Car car, Image? sprite)
     {
         var hw = car.Width * 0.5f;
-        var hh = car.Height * 0.5f;
+        var hhVis = car.VisualHeight * 0.5f;
         var state = g.Save();
         try
         {
             g.TranslateTransform(car.CenterX, car.CenterY);
             g.RotateTransform(car.HeadingDegreesClockwiseFromUp);
 
-            using var carBrush = new SolidBrush(car.BodyColor);
-            g.FillRectangle(carBrush, -hw, -hh, car.Width, car.Height);
-            g.DrawRectangle(outlinePen, -hw, -hh, car.Width, car.Height);
+            if (sprite != null)
+            {
+                var prevInterp = g.InterpolationMode;
+                var prevPixel = g.PixelOffsetMode;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.Half;
+                try
+                {
+                    var iw = sprite.Width;
+                    var ih = sprite.Height;
+                    var src = new RectangleF(0f, 0f, iw, ih);
+                    var dst = new RectangleF(-hw, -hhVis, car.Width, car.VisualHeight);
+                    g.DrawImage(sprite, dst, src, GraphicsUnit.Pixel);
+                }
+                finally
+                {
+                    g.PixelOffsetMode = prevPixel;
+                    g.InterpolationMode = prevInterp;
+                }
+            }
+            else
+            {
+                using var carBrush = new SolidBrush(car.BodyColor);
+                g.FillRectangle(carBrush, -hw, -hhVis, car.Width, car.VisualHeight);
+                g.DrawRectangle(outlinePen, -hw, -hhVis, car.Width, car.VisualHeight);
 
-            var nose = Darken(car.BodyColor, 0.58f);
-            using var noseBrush = new SolidBrush(nose);
-            var tipY = -hh + Math.Max(4f, hh * 0.06f);
-            var baseY = -hh + Math.Max(18f, hh * 0.24f);
-            var halfW = Math.Max(5f, car.Width * 0.15f);
-            PointF[] nosePoly =
-            [
-                new(0, tipY),
-                new(-halfW, baseY),
-                new(halfW, baseY)
-            ];
-            g.FillPolygon(noseBrush, nosePoly);
+                var nose = Darken(car.BodyColor, 0.58f);
+                using var noseBrush = new SolidBrush(nose);
+                var tipY = -hhVis + Math.Max(4f, hhVis * 0.06f);
+                var baseY = -hhVis + Math.Max(18f, hhVis * 0.24f);
+                var halfW = Math.Max(5f, car.Width * 0.15f);
+                PointF[] nosePoly =
+                [
+                    new(0, tipY),
+                    new(-halfW, baseY),
+                    new(halfW, baseY)
+                ];
+                g.FillPolygon(noseBrush, nosePoly);
+            }
         }
         finally
         {
@@ -336,7 +397,14 @@ public class GameSurface : Panel
     protected override void Dispose(bool disposing)
     {
         if (disposing)
+        {
             _timer.Dispose();
+            _blueCarSprite?.Dispose();
+            _redCarSprite?.Dispose();
+            _greenCarSprite?.Dispose();
+            _yellowCarSprite?.Dispose();
+            _purpleCarSprite?.Dispose();
+        }
         base.Dispose(disposing);
     }
 }
