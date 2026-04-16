@@ -29,6 +29,26 @@
       <Link>Assets\PurpleCar.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\Sound Effects\Idle Car.mp3">
+      <Link>Sound Effects\Idle Car.mp3</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sound Effects\Moving Sound.mp3">
+      <Link>Sound Effects\Moving Sound.mp3</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sound Effects\Reverse Beep.mp3">
+      <Link>Sound Effects\Reverse Beep.mp3</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sound Effects\Car Crash.mp3">
+      <Link>Sound Effects\Car Crash.mp3</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.3.0" />
   </ItemGroup>
 
 </Project>

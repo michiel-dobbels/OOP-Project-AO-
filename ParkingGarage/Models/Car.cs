@@ -7,11 +7,12 @@ namespace ParkingGarage.Models;
 /// </summary>
 public class Car
 {
-    public Car(float centerX, float centerY, float width, float heightCollision, float heightVisual, float headingRadians, Color bodyColor)
+    public Car(float centerX, float centerY, float widthCollision, float widthVisual, float heightCollision, float heightVisual, float headingRadians, Color bodyColor)
     {
         CenterX = centerX;
         CenterY = centerY;
-        Width = width;
+        Width = widthCollision;
+        VisualWidth = widthVisual;
         Height = heightCollision;
         VisualHeight = heightVisual;
         HeadingRadians = headingRadians;
@@ -20,7 +21,10 @@ public class Car
 
     public float CenterX { get; set; }
     public float CenterY { get; set; }
+    /// <summary>Width along the side-to-side axis for collision/movement.</summary>
     public float Width { get; }
+    /// <summary>Width for drawing (sprites / block body).</summary>
+    public float VisualWidth { get; }
     /// <summary>Length along the body (long axis) for collision, movement bounds, and parking checks.</summary>
     public float Height { get; }
 

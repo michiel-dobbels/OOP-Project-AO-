@@ -18,3 +18,16 @@ c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\n
 c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\GreenCar.png
 c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\YellowCar.png
 c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Assets\PurpleCar.png
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Sound Effects\Idle Car.mp3
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.Asio.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.Core.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.Midi.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.Wasapi.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.WinForms.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\NAudio.WinMM.dll
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingGarage.csproj.AssemblyReference.cache
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\obj\Debug\net8.0-windows\ParkingG.FF8D3B12.Up2Date
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Sound Effects\Moving Sound.mp3
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Sound Effects\Reverse Beep.mp3
+c:\Users\Gebruiker\Documents\_VIVES\OOP\Project Garage\ParkingGarage\bin\Debug\net8.0-windows\Sound Effects\Car Crash.mp3

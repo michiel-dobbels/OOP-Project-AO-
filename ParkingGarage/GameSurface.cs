@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.IO;
+using NAudio.Wave;
 using ParkingGarage.Models;
 
 namespace ParkingGarage;
@@ -24,6 +25,28 @@ public class GameSurface : Panel
     private readonly Image? _greenCarSprite;
     private readonly Image? _yellowCarSprite;
     private readonly Image? _purpleCarSprite;
+    private readonly string _idleCarAudioPath;
+    private readonly string _movingCarAudioPath;
+    private readonly string _reverseBeepAudioPath;
+    private readonly string _carCrashAudioPath;
+    private IWavePlayer? _idleOutput;
+    private AudioFileReader? _idleReader;
+    private IWavePlayer? _movingOutput;
+    private AudioFileReader? _movingReader;
+    private IWavePlayer? _reverseOutput;
+    private AudioFileReader? _reverseReader;
+    private IWavePlayer? _crashOutput;
+    private AudioFileReader? _crashReader;
+    private bool _engineLoopWanted;
+    private bool _restartingIdle;
+    private bool _restartingMoving;
+    private bool _restartingReverse;
+    private float _idleVolume = 1f;
+    private float _movingVolume;
+
+    private const float IdleFadeSeconds = 1.25f;
+    private const float MovingFadeInSeconds = 1.25f;
+    private const float MovingFadeOutSeconds = 0.75f;
 
     private static readonly Color GreenLed = Color.FromArgb(80, 220, 120);
     private static readonly Color RedLed = Color.FromArgb(240, 70, 70);
@@ -62,6 +85,10 @@ public class GameSurface : Panel
         var purplePath = Path.Combine(AppContext.BaseDirectory, "Assets", "PurpleCar.png");
         if (File.Exists(purplePath))
             _purpleCarSprite = Image.FromFile(purplePath);
+        _idleCarAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Idle Car.mp3");
+        _movingCarAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Moving Sound.mp3");
+        _reverseBeepAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Reverse Beep.mp3");
+        _carCrashAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Car Crash.mp3");
 
         _crashLabel = new Label
         {
@@ -156,6 +183,7 @@ public class GameSurface : Panel
         _sw.Restart();
         _lastTicks = _sw.ElapsedTicks;
         _timer.Start();
+        UpdateEngineLoopState(0f);
         Invalidate();
     }
 
@@ -164,6 +192,8 @@ public class GameSurface : Panel
         _timer.Stop();
         _keysDown.Clear();
         _crashOverlay.Visible = false;
+        StopEngineLoop();
+        StopCrashSound();
     }
 
     public void NotifyKeyDown(KeyEventArgs e)
@@ -171,6 +201,7 @@ public class GameSurface : Panel
         if (e.KeyCode is Keys.Left or Keys.Right or Keys.Up or Keys.Down)
         {
             _keysDown.Add(e.KeyCode);
+            UpdateEngineLoopState(0f);
             e.Handled = true;
         }
     }
@@ -178,6 +209,7 @@ public class GameSurface : Panel
     public void NotifyKeyUp(KeyEventArgs e)
     {
         _keysDown.Remove(e.KeyCode);
+        UpdateEngineLoopState(0f);
         if (e.KeyCode == Keys.Space && _game?.Phase == GamePhase.Playing)
         {
             _game.TryParkCurrentCar();
@@ -203,6 +235,7 @@ public class GameSurface : Panel
         _game?.ResetSimulation();
         _lastTicks = _sw.ElapsedTicks;
         _timer.Start();
+        UpdateEngineLoopState(0f);
         Invalidate();
     }
 
@@ -220,7 +253,10 @@ public class GameSurface : Panel
     private void OnTick(object? sender, EventArgs e)
     {
         if (_game == null || _game.Phase == GamePhase.Crashed)
+        {
+            StopEngineLoop();
             return;
+        }
 
         var now = _sw.ElapsedTicks;
         var dt = (now - _lastTicks) / (float)Stopwatch.Frequency;
@@ -238,10 +274,263 @@ public class GameSurface : Panel
         if (_game.Phase == GamePhase.Crashed)
         {
             _timer.Stop();
+            StopEngineLoop();
+            PlayCrashSoundOnce();
             ShowCrashOverlay();
+        }
+        else
+        {
+            UpdateEngineLoopState(dt);
         }
 
         Invalidate();
+    }
+
+    private bool ShouldPlayEngineLoop() =>
+        _game is { Phase: GamePhase.Playing, ActiveCar: not null } &&
+        !_crashOverlay.Visible &&
+        Visible;
+
+    private void UpdateEngineLoopState(float deltaSeconds)
+    {
+        if (!ShouldPlayEngineLoop())
+        {
+            StopEngineLoop();
+            return;
+        }
+
+        EnsureEngineLoopStarted();
+        if (_idleReader == null || _movingReader == null)
+            return;
+
+        // Default loop state: idle full, moving silent. When Up is held: crossfade to moving.
+        var forwardHeld = _keysDown.Contains(Keys.Up);
+        var targetIdle = forwardHeld ? 0f : 1f;
+        var targetMoving = forwardHeld ? 1f : 0f;
+        var idleRate = 1f / IdleFadeSeconds;
+        var movingRate = forwardHeld ? 1f / MovingFadeInSeconds : 1f / MovingFadeOutSeconds;
+
+        if (deltaSeconds <= 0f)
+            deltaSeconds = 0f;
+
+        _idleVolume = MoveTowards(_idleVolume, targetIdle, idleRate * deltaSeconds);
+        _movingVolume = MoveTowards(_movingVolume, targetMoving, movingRate * deltaSeconds);
+        _idleReader.Volume = _idleVolume;
+        _movingReader.Volume = _movingVolume;
+
+        UpdateReverseBeepState();
+    }
+
+    private void EnsureEngineLoopStarted()
+    {
+        if (_idleOutput != null && _idleReader != null && _movingOutput != null && _movingReader != null)
+            return;
+
+        if (!File.Exists(_idleCarAudioPath) || !File.Exists(_movingCarAudioPath))
+            return;
+
+        try
+        {
+            _idleReader = new AudioFileReader(_idleCarAudioPath) { Volume = _idleVolume };
+            _movingReader = new AudioFileReader(_movingCarAudioPath) { Volume = _movingVolume };
+
+            _idleOutput = new WaveOutEvent();
+            _movingOutput = new WaveOutEvent();
+            _idleOutput.PlaybackStopped += IdleOutput_PlaybackStopped;
+            _movingOutput.PlaybackStopped += MovingOutput_PlaybackStopped;
+            _idleOutput.Init(_idleReader);
+            _movingOutput.Init(_movingReader);
+            _engineLoopWanted = true;
+            _idleOutput.Play();
+            _movingOutput.Play();
+        }
+        catch
+        {
+            StopEngineLoop();
+        }
+    }
+
+    private void StopEngineLoop()
+    {
+        _engineLoopWanted = false;
+        _restartingIdle = false;
+        _restartingMoving = false;
+        _restartingReverse = false;
+        _idleVolume = 1f;
+        _movingVolume = 0f;
+
+        if (_idleOutput != null)
+        {
+            _idleOutput.PlaybackStopped -= IdleOutput_PlaybackStopped;
+            _idleOutput.Stop();
+            _idleOutput.Dispose();
+            _idleOutput = null;
+        }
+
+        if (_movingOutput != null)
+        {
+            _movingOutput.PlaybackStopped -= MovingOutput_PlaybackStopped;
+            _movingOutput.Stop();
+            _movingOutput.Dispose();
+            _movingOutput = null;
+        }
+
+        _idleReader?.Dispose();
+        _idleReader = null;
+        _movingReader?.Dispose();
+        _movingReader = null;
+        StopReverseBeep();
+    }
+
+    private void IdleOutput_PlaybackStopped(object? sender, StoppedEventArgs e)
+    {
+        if (!_engineLoopWanted || _idleOutput == null || _idleReader == null || _restartingIdle)
+            return;
+
+        _restartingIdle = true;
+        try
+        {
+            _idleReader.Position = 0;
+            _idleOutput.Play();
+        }
+        catch
+        {
+            StopEngineLoop();
+        }
+        finally
+        {
+            _restartingIdle = false;
+        }
+    }
+
+    private void MovingOutput_PlaybackStopped(object? sender, StoppedEventArgs e)
+    {
+        if (!_engineLoopWanted || _movingOutput == null || _movingReader == null || _restartingMoving)
+            return;
+
+        _restartingMoving = true;
+        try
+        {
+            _movingReader.Position = 0;
+            _movingOutput.Play();
+        }
+        catch
+        {
+            StopEngineLoop();
+        }
+        finally
+        {
+            _restartingMoving = false;
+        }
+    }
+
+    private void UpdateReverseBeepState()
+    {
+        var reverseHeld = _keysDown.Contains(Keys.Down);
+        if (!reverseHeld)
+        {
+            StopReverseBeep();
+            return;
+        }
+
+        if (_reverseOutput != null && _reverseReader != null)
+            return;
+
+        if (!File.Exists(_reverseBeepAudioPath))
+            return;
+
+        try
+        {
+            _reverseReader = new AudioFileReader(_reverseBeepAudioPath);
+            _reverseOutput = new WaveOutEvent();
+            _reverseOutput.PlaybackStopped += ReverseOutput_PlaybackStopped;
+            _reverseOutput.Init(_reverseReader);
+            _reverseOutput.Play();
+        }
+        catch
+        {
+            StopReverseBeep();
+        }
+    }
+
+    private void StopReverseBeep()
+    {
+        _restartingReverse = false;
+
+        if (_reverseOutput != null)
+        {
+            _reverseOutput.PlaybackStopped -= ReverseOutput_PlaybackStopped;
+            _reverseOutput.Stop();
+            _reverseOutput.Dispose();
+            _reverseOutput = null;
+        }
+
+        _reverseReader?.Dispose();
+        _reverseReader = null;
+    }
+
+    private void ReverseOutput_PlaybackStopped(object? sender, StoppedEventArgs e)
+    {
+        if (_reverseOutput == null || _reverseReader == null || _restartingReverse || !_keysDown.Contains(Keys.Down))
+            return;
+
+        _restartingReverse = true;
+        try
+        {
+            _reverseReader.Position = 0;
+            _reverseOutput.Play();
+        }
+        catch
+        {
+            StopReverseBeep();
+        }
+        finally
+        {
+            _restartingReverse = false;
+        }
+    }
+
+    private void PlayCrashSoundOnce()
+    {
+        StopCrashSound();
+        if (!File.Exists(_carCrashAudioPath))
+            return;
+
+        try
+        {
+            _crashReader = new AudioFileReader(_carCrashAudioPath) { Volume = 0.8f };
+            _crashOutput = new WaveOutEvent();
+            _crashOutput.PlaybackStopped += CrashOutput_PlaybackStopped;
+            _crashOutput.Init(_crashReader);
+            _crashOutput.Play();
+        }
+        catch
+        {
+            StopCrashSound();
+        }
+    }
+
+    private void CrashOutput_PlaybackStopped(object? sender, StoppedEventArgs e) => StopCrashSound();
+
+    private void StopCrashSound()
+    {
+        if (_crashOutput != null)
+        {
+            _crashOutput.PlaybackStopped -= CrashOutput_PlaybackStopped;
+            _crashOutput.Stop();
+            _crashOutput.Dispose();
+            _crashOutput = null;
+        }
+
+        _crashReader?.Dispose();
+        _crashReader = null;
+    }
+
+    private static float MoveTowards(float current, float target, float maxDelta)
+    {
+        if (current < target)
+            return MathF.Min(current + maxDelta, target);
+        return MathF.Max(current - maxDelta, target);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -326,7 +615,7 @@ public class GameSurface : Panel
 
     private static void DrawCar(Graphics g, Pen outlinePen, Car car, Image? sprite)
     {
-        var hw = car.Width * 0.5f;
+        var hw = car.VisualWidth * 0.5f;
         var hhVis = car.VisualHeight * 0.5f;
         var state = g.Save();
         try
@@ -345,7 +634,7 @@ public class GameSurface : Panel
                     var iw = sprite.Width;
                     var ih = sprite.Height;
                     var src = new RectangleF(0f, 0f, iw, ih);
-                    var dst = new RectangleF(-hw, -hhVis, car.Width, car.VisualHeight);
+                    var dst = new RectangleF(-hw, -hhVis, car.VisualWidth, car.VisualHeight);
                     g.DrawImage(sprite, dst, src, GraphicsUnit.Pixel);
                 }
                 finally
@@ -357,14 +646,14 @@ public class GameSurface : Panel
             else
             {
                 using var carBrush = new SolidBrush(car.BodyColor);
-                g.FillRectangle(carBrush, -hw, -hhVis, car.Width, car.VisualHeight);
-                g.DrawRectangle(outlinePen, -hw, -hhVis, car.Width, car.VisualHeight);
+                g.FillRectangle(carBrush, -hw, -hhVis, car.VisualWidth, car.VisualHeight);
+                g.DrawRectangle(outlinePen, -hw, -hhVis, car.VisualWidth, car.VisualHeight);
 
                 var nose = Darken(car.BodyColor, 0.58f);
                 using var noseBrush = new SolidBrush(nose);
                 var tipY = -hhVis + Math.Max(4f, hhVis * 0.06f);
                 var baseY = -hhVis + Math.Max(18f, hhVis * 0.24f);
-                var halfW = Math.Max(5f, car.Width * 0.15f);
+                var halfW = Math.Max(5f, car.VisualWidth * 0.15f);
                 PointF[] nosePoly =
                 [
                     new(0, tipY),
@@ -398,6 +687,8 @@ public class GameSurface : Panel
     {
         if (disposing)
         {
+            StopEngineLoop();
+            StopCrashSound();
             _timer.Dispose();
             _blueCarSprite?.Dispose();
             _redCarSprite?.Dispose();
