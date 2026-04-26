@@ -20,6 +20,9 @@ public class GameSurface : Panel
     private readonly Label _crashLabel;
     private readonly Button _btnHerstart;
     private readonly Button _btnStopSimulatie;
+    private readonly Button _btnVerderzetten;
+    private bool _completionOverlayActive;
+    private bool _pauseOverlayActive;
     private readonly Image? _blueCarSprite;
     private readonly Image? _redCarSprite;
     private readonly Image? _greenCarSprite;
@@ -29,6 +32,7 @@ public class GameSurface : Panel
     private readonly string _movingCarAudioPath;
     private readonly string _reverseBeepAudioPath;
     private readonly string _carCrashAudioPath;
+    private readonly string _menuMusicAudioPath;
     private IWavePlayer? _idleOutput;
     private AudioFileReader? _idleReader;
     private IWavePlayer? _movingOutput;
@@ -37,6 +41,10 @@ public class GameSurface : Panel
     private AudioFileReader? _reverseReader;
     private IWavePlayer? _crashOutput;
     private AudioFileReader? _crashReader;
+    private IWavePlayer? _menuMusicOutput;
+    private AudioFileReader? _menuMusicReader;
+    private bool _menuMusicLoopWanted;
+    private bool _restartingMenuMusic;
     private bool _engineLoopWanted;
     private bool _restartingIdle;
     private bool _restartingMoving;
@@ -47,11 +55,13 @@ public class GameSurface : Panel
     private const float IdleFadeSeconds = 1.25f;
     private const float MovingFadeInSeconds = 1.25f;
     private const float MovingFadeOutSeconds = 0.75f;
+    private const float MenuMusicVolume = 0.2f;
 
     private static readonly Color GreenLed = Color.FromArgb(80, 220, 120);
     private static readonly Color RedLed = Color.FromArgb(240, 70, 70);
 
     public event Action? ExitToMenu;
+    public event Action? ExitProgram;
 
     public GameSurface()
     {
@@ -89,6 +99,7 @@ public class GameSurface : Panel
         _movingCarAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Moving Sound.mp3");
         _reverseBeepAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Reverse Beep.mp3");
         _carCrashAudioPath = Path.Combine(AppContext.BaseDirectory, "Sound Effects", "Car Crash.mp3");
+        _menuMusicAudioPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Rebirth Island.mp3");
 
         _crashLabel = new Label
         {
@@ -115,7 +126,7 @@ public class GameSurface : Panel
             UseVisualStyleBackColor = false
         };
         _btnHerstart.FlatAppearance.BorderColor = Color.Gainsboro;
-        _btnHerstart.Click += (_, _) => OnHerstart();
+        _btnHerstart.Click += (_, _) => OnPrimaryOverlayAction();
 
         _btnStopSimulatie = new Button
         {
@@ -130,7 +141,23 @@ public class GameSurface : Panel
             UseVisualStyleBackColor = false
         };
         _btnStopSimulatie.FlatAppearance.BorderColor = Color.Gainsboro;
-        _btnStopSimulatie.Click += (_, _) => ExitToMenu?.Invoke();
+        _btnStopSimulatie.Click += (_, _) => OnSecondaryOverlayAction();
+
+        _btnVerderzetten = new Button
+        {
+            Text = "simulatie verderzetten",
+            AutoSize = true,
+            BackColor = AppColors.PanelControl,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.WhiteSmoke,
+            Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
+            Margin = new Padding(8),
+            Padding = new Padding(24, 10, 24, 10),
+            UseVisualStyleBackColor = false,
+            Visible = false
+        };
+        _btnVerderzetten.FlatAppearance.BorderColor = Color.Gainsboro;
+        _btnVerderzetten.Click += (_, _) => ResumePausedSimulation();
 
         var buttonRow = new FlowLayoutPanel
         {
@@ -142,6 +169,7 @@ public class GameSurface : Panel
             Padding = new Padding(0, 8, 0, 0),
             BackColor = Color.Transparent
         };
+        buttonRow.Controls.Add(_btnVerderzetten);
         buttonRow.Controls.Add(_btnHerstart);
         buttonRow.Controls.Add(_btnStopSimulatie);
 
@@ -171,6 +199,7 @@ public class GameSurface : Panel
         _crashOverlay.BringToFront();
 
         _timer.Tick += OnTick;
+        EnsureMenuMusicStarted();
     }
 
     public void StartSession()
@@ -179,6 +208,8 @@ public class GameSurface : Panel
             return;
 
         _game = new ParkingGame(ClientSize.Width, ClientSize.Height);
+        _completionOverlayActive = false;
+        _pauseOverlayActive = false;
         _crashOverlay.Visible = false;
         _sw.Restart();
         _lastTicks = _sw.ElapsedTicks;
@@ -191,13 +222,29 @@ public class GameSurface : Panel
     {
         _timer.Stop();
         _keysDown.Clear();
+        _completionOverlayActive = false;
+        _pauseOverlayActive = false;
         _crashOverlay.Visible = false;
         StopEngineLoop();
         StopCrashSound();
     }
 
+    public void TogglePauseMenu()
+    {
+        if (!Visible || _game == null || _game.Phase != GamePhase.Playing)
+            return;
+
+        if (_pauseOverlayActive)
+            ResumePausedSimulation();
+        else
+            ShowPauseOverlay();
+    }
+
     public void NotifyKeyDown(KeyEventArgs e)
     {
+        if (_pauseOverlayActive)
+            return;
+
         if (e.KeyCode is Keys.Left or Keys.Right or Keys.Up or Keys.Down)
         {
             _keysDown.Add(e.KeyCode);
@@ -213,6 +260,8 @@ public class GameSurface : Panel
         if (e.KeyCode == Keys.Space && _game?.Phase == GamePhase.Playing)
         {
             _game.TryParkCurrentCar();
+            if (_game.Phase == GamePhase.Completed)
+                HandleCompletedState();
             e.Handled = true;
         }
     }
@@ -231,6 +280,9 @@ public class GameSurface : Panel
 
     private void OnHerstart()
     {
+        _completionOverlayActive = false;
+        _pauseOverlayActive = false;
+        _btnVerderzetten.Visible = false;
         _crashOverlay.Visible = false;
         _game?.ResetSimulation();
         _lastTicks = _sw.ElapsedTicks;
@@ -241,6 +293,11 @@ public class GameSurface : Panel
 
     private void ShowCrashOverlay()
     {
+        _completionOverlayActive = false;
+        _pauseOverlayActive = false;
+        _btnVerderzetten.Visible = false;
+        _btnHerstart.Text = "Herstart";
+        _btnStopSimulatie.Text = "stop simulatie";
         _crashLabel.Text = _game?.LastCrashKind == CrashKind.Wall
             ? "Auto is tegen de muur gereden, hopelijk heeft niemand het gezien."
             : "Auto's gebotst, haal het aanrijdingsformulier uit het handschoenkastje.";
@@ -252,7 +309,7 @@ public class GameSurface : Panel
 
     private void OnTick(object? sender, EventArgs e)
     {
-        if (_game == null || _game.Phase == GamePhase.Crashed)
+        if (_game == null || _game.Phase is GamePhase.Crashed or GamePhase.Completed)
         {
             StopEngineLoop();
             return;
@@ -277,6 +334,10 @@ public class GameSurface : Panel
             StopEngineLoop();
             PlayCrashSoundOnce();
             ShowCrashOverlay();
+        }
+        else if (_game.Phase == GamePhase.Completed)
+        {
+            HandleCompletedState();
         }
         else
         {
@@ -526,11 +587,148 @@ public class GameSurface : Panel
         _crashReader = null;
     }
 
+    private void EnsureMenuMusicStarted()
+    {
+        if (_menuMusicOutput != null && _menuMusicReader != null)
+            return;
+
+        if (!File.Exists(_menuMusicAudioPath))
+            return;
+
+        try
+        {
+            _menuMusicReader = new AudioFileReader(_menuMusicAudioPath) { Volume = MenuMusicVolume };
+            _menuMusicOutput = new WaveOutEvent();
+            _menuMusicOutput.PlaybackStopped += MenuMusicOutput_PlaybackStopped;
+            _menuMusicOutput.Init(_menuMusicReader);
+            _menuMusicLoopWanted = true;
+            _menuMusicOutput.Play();
+        }
+        catch
+        {
+            StopMenuMusic();
+        }
+    }
+
+    private void MenuMusicOutput_PlaybackStopped(object? sender, StoppedEventArgs e)
+    {
+        if (!_menuMusicLoopWanted || _menuMusicOutput == null || _menuMusicReader == null || _restartingMenuMusic)
+            return;
+
+        _restartingMenuMusic = true;
+        try
+        {
+            _menuMusicReader.Position = 0;
+            _menuMusicOutput.Play();
+        }
+        catch
+        {
+            StopMenuMusic();
+        }
+        finally
+        {
+            _restartingMenuMusic = false;
+        }
+    }
+
+    private void StopMenuMusic()
+    {
+        _menuMusicLoopWanted = false;
+        _restartingMenuMusic = false;
+
+        if (_menuMusicOutput != null)
+        {
+            _menuMusicOutput.PlaybackStopped -= MenuMusicOutput_PlaybackStopped;
+            _menuMusicOutput.Stop();
+            _menuMusicOutput.Dispose();
+            _menuMusicOutput = null;
+        }
+
+        _menuMusicReader?.Dispose();
+        _menuMusicReader = null;
+    }
+
     private static float MoveTowards(float current, float target, float maxDelta)
     {
         if (current < target)
             return MathF.Min(current + maxDelta, target);
         return MathF.Max(current - maxDelta, target);
+    }
+
+    private void HandleCompletedState()
+    {
+        _timer.Stop();
+        StopEngineLoop();
+        ShowCompletedOverlay();
+    }
+
+    private void ShowCompletedOverlay()
+    {
+        _completionOverlayActive = true;
+        _pauseOverlayActive = false;
+        _btnVerderzetten.Visible = false;
+        _btnHerstart.Text = "simulatie herstarten";
+        _btnStopSimulatie.Text = "programma verlaten";
+        _crashLabel.Text = _game?.LastCompletionKind == CompletionKind.NoAvailableSpots
+            ? "geen beschikbare parkeerplaatsen meer, simulatie is ten einde."
+            : "te veel auto's in de parkeergarage";
+        _crashOverlay.Visible = true;
+        _crashOverlay.BringToFront();
+        CenterCrashContent();
+        Invalidate();
+    }
+
+    private void ShowPauseOverlay()
+    {
+        _timer.Stop();
+        StopEngineLoop();
+        _keysDown.Clear();
+        _completionOverlayActive = false;
+        _pauseOverlayActive = true;
+        _btnVerderzetten.Visible = true;
+        _btnHerstart.Text = "simulatie herstarten";
+        _btnStopSimulatie.Text = "programma verlaten";
+        _crashLabel.Text = "simulatie gepauzeerd";
+        _crashOverlay.Visible = true;
+        _crashOverlay.BringToFront();
+        CenterCrashContent();
+        Invalidate();
+    }
+
+    private void ResumePausedSimulation()
+    {
+        if (!_pauseOverlayActive || _game == null || _game.Phase != GamePhase.Playing)
+            return;
+
+        _pauseOverlayActive = false;
+        _btnVerderzetten.Visible = false;
+        _crashOverlay.Visible = false;
+        _lastTicks = _sw.ElapsedTicks;
+        _timer.Start();
+        UpdateEngineLoopState(0f);
+        Invalidate();
+    }
+
+    private void OnPrimaryOverlayAction()
+    {
+        if (_pauseOverlayActive || _completionOverlayActive)
+        {
+            OnHerstart();
+            return;
+        }
+
+        OnHerstart();
+    }
+
+    private void OnSecondaryOverlayAction()
+    {
+        if (_pauseOverlayActive || _completionOverlayActive)
+        {
+            ExitProgram?.Invoke();
+            return;
+        }
+
+        ExitToMenu?.Invoke();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -689,6 +887,7 @@ public class GameSurface : Panel
         {
             StopEngineLoop();
             StopCrashSound();
+            StopMenuMusic();
             _timer.Dispose();
             _blueCarSprite?.Dispose();
             _redCarSprite?.Dispose();

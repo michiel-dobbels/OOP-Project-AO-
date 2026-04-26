@@ -247,11 +247,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\Gebruiker\\Documents\\_VIVES\\OOP\\Project Garage\\ParkingGarage\\ParkingGarage.csproj",
+      "projectUniqueName": "C:\\Users\\Gebruiker\\Documents\\_VIVES\\OOP\\Project Garage\\ParkingGarage\\ParkingGarage.csproj",
       "projectName": "ParkingGarage",
-      "projectPath": "c:\\Users\\Gebruiker\\Documents\\_VIVES\\OOP\\Project Garage\\ParkingGarage\\ParkingGarage.csproj",
+      "projectPath": "C:\\Users\\Gebruiker\\Documents\\_VIVES\\OOP\\Project Garage\\ParkingGarage\\ParkingGarage.csproj",
       "packagesPath": "C:\\Users\\Gebruiker\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\Gebruiker\\Documents\\_VIVES\\OOP\\Project Garage\\ParkingGarage\\obj\\",
+      "outputPath": "C:\\Users\\Gebruiker\\Documents\\_VIVES\\OOP\\Project Garage\\ParkingGarage\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

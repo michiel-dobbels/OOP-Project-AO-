@@ -6,7 +6,8 @@ namespace ParkingGarage;
 public enum GamePhase
 {
     Playing,
-    Crashed
+    Crashed,
+    Completed
 }
 
 public enum CrashKind
@@ -14,6 +15,13 @@ public enum CrashKind
     None,
     CarCollision,
     Wall
+}
+
+public enum CompletionKind
+{
+    None,
+    NoAvailableSpots,
+    TooManyCars
 }
 
 public class ParkingGame
@@ -59,6 +67,8 @@ public class ParkingGame
 
     public CrashKind LastCrashKind { get; private set; }
 
+    public CompletionKind LastCompletionKind { get; private set; }
+
     public Car? ActiveCar { get; private set; }
 
     public IReadOnlyList<Car> Cars => _cars;
@@ -84,6 +94,7 @@ public class ParkingGame
     {
         Phase = GamePhase.Playing;
         LastCrashKind = CrashKind.None;
+        LastCompletionKind = CompletionKind.None;
         _cars.Clear();
         var first = CreateCarAtSpawn(colorIndex: 0);
         _cars.Add(first);
@@ -130,6 +141,15 @@ public class ParkingGame
         else
         {
             ActiveCar = null;
+            LastCompletionKind = CompletionKind.TooManyCars;
+            Phase = GamePhase.Completed;
+            return;
+        }
+
+        if (AvailableSpotCount == 0)
+        {
+            LastCompletionKind = CompletionKind.NoAvailableSpots;
+            Phase = GamePhase.Completed;
         }
     }
 

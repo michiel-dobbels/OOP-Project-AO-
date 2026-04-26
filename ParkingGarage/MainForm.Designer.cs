@@ -60,7 +60,7 @@ partial class MainForm
         _menuPanel.Controls.Add(lblTitle);
         _menuPanel.Controls.Add(btnStart);
         _menuPanel.Controls.Add(btnExit);
-        _menuPanel.Dock = DockStyle.Fill;
+        _menuPanel.Dock = DockStyle.None;
         _menuPanel.Padding = new Padding(40);
 
         AutoScaleDimensions = new SizeF(7F, 15F);
