@@ -5,6 +5,8 @@ partial class MainForm
     private System.ComponentModel.IContainer components = null!;
 
     private FlowLayoutPanel _menuPanel = null!;
+    private Label _lblTitle = null!;
+    private Label _creditLabel = null!;
 
     protected override void Dispose(bool disposing)
     {
@@ -16,17 +18,25 @@ partial class MainForm
     private void InitializeComponent()
     {
         components = new System.ComponentModel.Container();
-        var lblTitle = new Label();
+        _lblTitle = new Label();
         var btnStart = new Button();
         var btnExit = new Button();
         _menuPanel = new FlowLayoutPanel();
         SuspendLayout();
 
-        lblTitle.AutoSize = true;
-        lblTitle.Font = new Font("Segoe UI", 14F, FontStyle.Regular, GraphicsUnit.Point);
-        lblTitle.ForeColor = Color.WhiteSmoke;
-        lblTitle.Margin = new Padding(0, 0, 0, 28);
-        lblTitle.Text = "Ondergrondse parking — simulatie";
+        _lblTitle.AutoSize = true;
+        _lblTitle.Font = new Font("Segoe UI", 26F, FontStyle.Bold, GraphicsUnit.Point);
+        _lblTitle.ForeColor = Color.FromArgb(255, 214, 120);
+        _lblTitle.Margin = new Padding(0, 0, 0, 28);
+        _lblTitle.Text = "Ondergrondse parking — simulatie";
+
+        _creditLabel = new Label();
+        _creditLabel.AutoSize = true;
+        _creditLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+        _creditLabel.BackColor = AppColors.FieldBackground;
+        _creditLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+        _creditLabel.ForeColor = Color.FromArgb(130, 150, 170);
+        _creditLabel.Text = "Created by Michiel Dobbels (2026)";
 
         btnStart.AutoSize = true;
         btnStart.BackColor = AppColors.PanelControl;
@@ -57,7 +67,7 @@ partial class MainForm
         _menuPanel.BackColor = AppColors.FieldBackground;
         _menuPanel.FlowDirection = FlowDirection.TopDown;
         _menuPanel.WrapContents = false;
-        _menuPanel.Controls.Add(lblTitle);
+        _menuPanel.Controls.Add(_lblTitle);
         _menuPanel.Controls.Add(btnStart);
         _menuPanel.Controls.Add(btnExit);
         _menuPanel.Dock = DockStyle.None;
@@ -68,6 +78,7 @@ partial class MainForm
         BackColor = AppColors.FieldBackground;
         ClientSize = AppLayout.SimulationClientSize;
         Controls.Add(_menuPanel);
+        Controls.Add(_creditLabel);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
